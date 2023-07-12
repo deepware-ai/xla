@@ -72,6 +72,7 @@ Layout::Layout(absl::Span<const int64_t> minor_to_major,
                absl::Span<const DimLevelType> dim_level_types,
                absl::Span<const bool> dim_unique,
                absl::Span<const bool> dim_ordered, absl::Span<const Tile> tiles,
+               int64_t tail_padding_alignment_in_elements,
                PrimitiveType index_primitive_type,
                PrimitiveType element_primitive_type,
                int64_t element_size_in_bits, int64_t memory_space,
@@ -82,6 +83,7 @@ Layout::Layout(absl::Span<const int64_t> minor_to_major,
       dim_ordered_(dim_ordered.begin(), dim_ordered.end()),
       minor_to_major_(minor_to_major.begin(), minor_to_major.end()),
       tiles_(tiles.begin(), tiles.end()),
+      tail_padding_alignment_in_elements_(tail_padding_alignment_in_elements),
       index_primitive_type_(index_primitive_type),
       pointer_primitive_type_(element_primitive_type),
       element_size_in_bits_(element_size_in_bits),
@@ -96,6 +98,8 @@ Layout::Layout(const Layout& other)
       dim_ordered_(other.dim_ordered_),
       minor_to_major_(other.minor_to_major_),
       tiles_(other.tiles_),
+      tail_padding_alignment_in_elements_(
+          other.tail_padding_alignment_in_elements_),
       index_primitive_type_(other.index_primitive_type_),
       pointer_primitive_type_(other.pointer_primitive_type_),
       element_size_in_bits_(other.element_size_in_bits_),
@@ -117,6 +121,8 @@ Layout& Layout::operator=(const Layout& other) {
     dim_ordered_ = other.dim_ordered_;
     minor_to_major_ = other.minor_to_major_;
     tiles_ = other.tiles_;
+    tail_padding_alignment_in_elements_ =
+        other.tail_padding_alignment_in_elements_;
     index_primitive_type_ = other.index_primitive_type_;
     pointer_primitive_type_ = other.pointer_primitive_type_;
     element_size_in_bits_ = other.element_size_in_bits_;
@@ -152,6 +158,12 @@ Layout& Layout::operator=(Layout&& other) = default;
   for (const TileProto& tile_proto : proto.tiles()) {
     *layout.add_tiles() = Tile::CreateFromProto(tile_proto);
   }
+  if (proto.tail_padding_alignment_in_elements() != 0) {
+    layout.set_tail_padding_alignment_in_elements(
+        proto.tail_padding_alignment_in_elements());
+  } else {
+    layout.set_tail_padding_alignment_in_elements(1);
+  }
   layout.set_index_primitive_type(proto.index_primitive_type());
   layout.set_pointer_primitive_type(proto.pointer_primitive_type());
   layout.set_element_size_in_bits(proto.element_size_in_bits());
@@ -182,6 +194,8 @@ LayoutProto Layout::ToProto() const {
   for (const Tile& tile : tiles()) {
     *proto.add_tiles() = tile.ToProto();
   }
+  proto.set_tail_padding_alignment_in_elements(
+      tail_padding_alignment_in_elements());
   proto.set_index_primitive_type(index_primitive_type());
   proto.set_pointer_primitive_type(pointer_primitive_type());
   proto.set_element_size_in_bits(element_size_in_bits_);
@@ -248,6 +262,13 @@ void Layout::Print(Printer* printer) const {
     for (const Tile& tile : tiles()) {
       tile.Print(printer);
     }
+  }
+
+  if (tail_padding_alignment_in_elements() != 1) {
+    print_colon();
+    printer->Append("L(");
+    printer->Append(tail_padding_alignment_in_elements());
+    printer->Append(")");
   }
 
   if (index_primitive_type() != PRIMITIVE_TYPE_INVALID) {
@@ -321,6 +342,11 @@ bool Layout::Equal::operator()(const Layout& lhs, const Layout& rhs) {
     return false;
   }
   if (!ignore_tiles_ && lhs.tiles() != rhs.tiles()) {
+    return false;
+  }
+  if (!ignore_tail_padding_alignment_in_elements_ &&
+      lhs.tail_padding_alignment_in_elements() !=
+          rhs.tail_padding_alignment_in_elements()) {
     return false;
   }
   if (!ignore_index_primitive_type_ &&
