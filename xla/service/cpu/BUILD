@@ -1,7 +1,7 @@
 # Description:
 #    LLVM-based CPU backend for XLA.
 
-load("@tsl//tsl:tsl.default.bzl", "filegroup", "get_compatible_with_portable")
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load(
     "//xla:xla.bzl",
     "ORC_JIT_MEMORY_MAPPER_TARGETS",
@@ -9,19 +9,19 @@ load(
     "xla_cc_test",
 )
 load(
-    "@tsl//tsl/mkl:build_defs.bzl",
-    "mkl_deps",
-)
-load("@tsl//tsl:tsl.bzl", "tf_openmp_copts", "tsl_copts")
-load(
     "//third_party/compute_library:build_defs.bzl",
     "acl_deps",
     "if_enable_acl",
 )
-load(":build_defs.bzl", "runtime_copts")
+load("@tsl//tsl:tsl.bzl", "tf_openmp_copts", "tsl_copts")
+load("@tsl//tsl:tsl.default.bzl", "filegroup", "get_compatible_with_portable")
+load(
+    "@tsl//tsl/mkl:build_defs.bzl",
+    "mkl_deps",
+)
 load("@tsl//tsl/platform:build_config.bzl", "if_llvm_system_z_available", "tf_proto_library")
 load("@tsl//tsl/platform:rules_cc.bzl", "cc_library")
-load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load(":build_defs.bzl", "runtime_copts")
 
 package(
     # copybara:uncomment default_applicable_licenses = ["//tensorflow:license"],
@@ -1006,6 +1006,7 @@ cc_library(
         "//xla:types",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/base:dynamic_annotations",
+        "@ducc//:fft_wrapper",
         "@eigen_archive//:eigen3",
         "@tsl//tsl/platform:mutex",
     ],
@@ -1121,10 +1122,14 @@ cc_library(
     copts = runtime_copts(),
     visibility = ["//visibility:public"],
     deps = [
+        ":runtime_fft",
+        ":runtime_lightweight_check",
         "//xla:types",
         "//xla:xla_data_proto_cc",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/base:dynamic_annotations",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@ducc//:fft_wrapper",
         "@eigen_archive//:eigen3",
     ],
 )
