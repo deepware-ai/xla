@@ -8783,6 +8783,33 @@ TEST_F(AlgebraicSimplifierTest, UnaryVariadicReduce) {
               GmockMatch(m::Add(m::Parameter(0), m::Parameter(1))));
 }
 
+TEST_F(AlgebraicSimplifierTest, ReplaceReduceSumOfZeroBroadcastWithInitVal) {
+  const char* kModuleStr = R"(
+HloModule ReplaceReduceSumOfZeroBroadcastWithInitVal
+
+add_f32 {
+  p0 = f32[] parameter(0)
+  p1 = f32[] parameter(1)
+  ROOT r = f32[] add(p0, p1)
+}
+
+ENTRY main {
+  init_value = f32[] constant(42)
+  zero = f32[] constant(0)
+  zero_bcast = f32[8, 128] broadcast(f32[] zero), dimensions={}
+  ROOT reduce = f32[8] reduce(f32[8, 128] zero_bcast, f32[] init_value), dimensions={1}, to_apply=add_f32
+}
+)";
+
+  TF_ASSERT_OK_AND_ASSIGN(auto m, ParseAndReturnVerifiedModule(kModuleStr));
+  ASSERT_TRUE(AlgebraicSimplifier(default_options_).Run(m.get()).value());
+  int64_t reduce_count =
+      absl::c_count_if(m->entry_computation()->instructions(),
+                       HloPredicateIsOp<HloOpcode::kReduce>);
+  // Expect no Reduce operation after simplification.
+  EXPECT_EQ(0, reduce_count);
+}
+
 TEST_F(AlgebraicSimplifierTest, ReplaceReduceMaxWithReduceArgMax) {
   const char* kModuleStr = R"(
 HloModule ReplaceReduceMaxWithReduceArgMax

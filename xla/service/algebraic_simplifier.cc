@@ -7039,6 +7039,16 @@ Status AlgebraicSimplifierVisitor::HandleReduce(HloInstruction* hlo) {
                                                         /*index=*/0));
     }
   }
+
+  // Replace Reduce(Broadcast(0), init_val, Sum()) with Broadcast(init_val).
+  if (Match(arg, m::Broadcast(m::ConstantScalar(0))) &&
+      Match(function->root_instruction(),
+            m::AddAnyOrder(m::Parameter(0), m::Parameter(1)))) {
+    return ReplaceWithNewInstruction(
+        reduce,
+        HloInstruction::CreateBroadcast(reduce_result_shape, init_value, {}));
+  }
+
   return OkStatus();
 }
 
