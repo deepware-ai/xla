@@ -5,7 +5,7 @@ Defaults to 3.10.
 """
 
 VERSIONS = ["3.9", "3.10", "3.11", "3.12"]
-DEFAULT_VERSION = "3.10"
+DEFAULT_VERSION = "3.11"
 WARNING = """
 TF_PYTHON_VERSION environment variable was not set correctly; using Python {}.
 
@@ -21,7 +21,7 @@ def _python_repository_impl(repository_ctx):
         version = DEFAULT_VERSION
     repository_ctx.file(
         "py_version.bzl",
-        "HERMETIC_PYTHON_VERSION = \"%s\"" %
+        "TF_PYTHON_VERSION = \"%s\"" %
         version,
     )
 
